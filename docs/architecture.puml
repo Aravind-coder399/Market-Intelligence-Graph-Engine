@@ -1,0 +1,118 @@
+@startuml Market_Intelligence_Architecture
+!theme cerulean-outline
+skinparam backgroundColor #FEFEFE
+skinparam componentStyle rectangle
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam roundCorner 15
+
+title Market Intelligence Graph Engine - System Architecture
+
+' ==== EXTERNAL DATA SOURCES ====
+package "External Data Sources" as EXT #E8F4FD {
+    database "Hugging Face\nFNSPID Dataset" as HF #FFF3CD
+    database "Amazon S3\nParquet Storage" as S3 #FFE4B5
+    cloud "Finnhub API\nReal-time News" as FINNHUB #E6E6FA
+    cloud "yfinance API\nStock Prices" as YF #E6FFE6
+}
+
+' ==== INGESTION LAYER ====
+package "Ingestion Pipeline" as INGEST #E8F8E8 {
+    component "FNSPIDLoader\n(fnspid_loader.py)" as FL
+    component "NewsLoader\n(news_loader.py)" as NL
+    component "GraphLoader\n(graph_loader.py)" as GL
+    component "MarketFetcher\n(market_fetcher.py)" as MF
+    component "ScheduledIngest\n(scheduled_ingest.py)" as SI
+}
+
+' ==== AI/ML PROCESSING ====
+package "AI/ML Processing" as AI #FFF0F5 {
+    component "Sentence Transformer\n(all-MiniLM-L6-v2)" as ST #FFB6C1
+    component "TextBlob\nSentiment Analysis" as TB #FFB6C1
+    component "LLM Summarizer\n(OpenAI GPT)" as LLM #FFB6C1
+}
+
+' ==== KNOWLEDGE GRAPH ====
+package "Knowledge Graph" as KG #E8E8FF {
+    database "FalkorDB Cloud\n(Neo4j Compatible)" as FALKOR #9370DB
+    
+    rectangle "Graph Schema" as SCHEMA {
+        entity "Company\n(ticker)" as C
+        entity "News\n(headline, embedding,\nday_1/7/30_return)" as N
+        entity "Topic\n(category)" as T
+    }
+    
+    C -left- N : "MENTIONS"
+    N -right- T : "HAS_TOPIC"
+}
+
+' ==== CORE SERVICES ====
+package "Core Services" as CORE #FFFAF0 {
+    component "MarketPredictor\n(predict_market.py)" as MP
+    component "AlertManager\n(alerts.py)" as AM
+    component "Backtester\n(backtesting.py)" as BT
+    component "RedisCache\n(cache.py)" as RC
+}
+
+' ==== PRESENTATION LAYER ====
+package "Presentation Layer" as UI #F0FFF0 {
+    component "Streamlit Dashboard\n(main.py)" as ST_UI <<Web App>>
+    
+    rectangle "UI Features" as FEATURES {
+        card "📰 News Feed" as F1 #90EE90
+        card "💼 Portfolio" as F2 #90EE90
+        card "🗄️ Database" as F3 #90EE90
+        card "🔔 Alerts" as F4 #90EE90
+        card "📊 Backtest" as F5 #90EE90
+    }
+    
+    rectangle "Visualizations" as VIZ {
+        card "Return Trajectory" as V1 #98FB98
+        card "Analytics Dashboard" as V2 #98FB98
+        card "Network Graph" as V3 #98FB98
+        card "Price Trends" as V4 #98FB98
+    }
+}
+
+' ==== CONNECTIONS ====
+' Data Source Connections
+HF --> FL : "Load Dataset"
+S3 --> FL : "Parquet Files"
+FINNHUB --> NL : "Live News"
+YF --> MF : "Stock Prices"
+
+' Ingestion Flow
+FL --> GL : "Batch Load"
+NL --> GL : "Real-time"
+MF --> GL : "Returns"
+SI --> GL : "Scheduled"
+
+' AI Processing
+GL --> ST : "Generate"
+ST --> GL : "Embeddings"
+GL --> TB : "Analyze"
+TB --> GL : "Sentiment"
+
+' Graph Storage
+GL --> FALKOR : "Cypher Queries"
+
+' Core Services
+FALKOR --> MP : "Vector Search"
+ST --> MP : "Query Embedding"
+MP --> RC : "Cache Results"
+FALKOR --> AM : "Pattern Match"
+FALKOR --> BT : "Historical Data"
+
+' Presentation
+MP --> ST_UI : "Predictions"
+AM --> ST_UI : "Alert Status"
+BT --> ST_UI : "Accuracy Metrics"
+FALKOR --> ST_UI : "Graph Stats"
+YF --> ST_UI : "Live Prices"
+
+' AI to UI
+LLM --> ST_UI : "AI Reports"
+MP --> LLM : "Analysis Data"
+
+@enduml

@@ -1,0 +1,105 @@
+@startuml Market_Intelligence_Sequence
+!theme cerulean-outline
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Segoe UI
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow true
+
+title Market Intelligence - Analysis Flow Sequence Diagram
+
+actor User as U #LightBlue
+participant "Streamlit\nDashboard" as UI #LightGreen
+participant "MarketPredictor" as MP #LightYellow
+participant "Sentence\nTransformer" as ST #LightPink
+participant "FalkorDB\nGraph" as DB #MediumPurple
+participant "LLM\nSummarizer" as LLM #LightCoral
+participant "Redis\nCache" as CACHE #LightGray
+
+== News Analysis Flow ==
+
+U -> UI : Enter News Headline
+activate UI
+
+UI -> MP : predict(headline, ticker)
+activate MP
+
+' Check Cache First
+MP -> CACHE : get_prediction(headline)
+activate CACHE
+CACHE --> MP : cache_miss
+deactivate CACHE
+
+' Generate Embedding
+MP -> ST : encode(headline)
+activate ST
+ST --> MP : embedding_vector [384 dims]
+deactivate ST
+
+' Vector Similarity Search
+MP -> DB : Vector Search Query
+activate DB
+note right of DB
+  MATCH (n:News)
+  WHERE n.embedding IS NOT NULL
+  RETURN n.headline, n.day_1_return,
+         n.day_7_return, n.day_30_return
+end note
+DB --> MP : similar_events [top 5]
+deactivate DB
+
+' Calculate Predictions
+MP -> MP : Calculate avg returns\nfrom similar events
+
+' AI Sentiment Analysis
+MP -> MP : TextBlob.sentiment(headline)
+
+' Cache Result
+MP -> CACHE : set_prediction(result)
+activate CACHE
+CACHE --> MP : cached
+deactivate CACHE
+
+MP --> UI : prediction_result
+deactivate MP
+
+== Optional: AI Report Generation ==
+
+alt User clicks "AI Report"
+    U -> UI : Request AI Report
+    UI -> LLM : generate_summary(prediction)
+    activate LLM
+    LLM -> LLM : Build prompt with\nevidence & metrics
+    LLM --> UI : professional_summary
+    deactivate LLM
+end
+
+UI --> U : Display Results\n(Metrics, Charts, Evidence)
+deactivate UI
+
+== Alert Monitoring Flow ==
+
+U -> UI : Add Alert Pattern
+activate UI
+UI -> DB : Store alert pattern
+DB --> UI : alert_saved
+deactivate UI
+
+loop Every 30 minutes
+    UI -> DB : Fetch new news
+    activate DB
+    DB --> UI : new_news_items
+    deactivate DB
+    
+    UI -> MP : check_similarity(alert, news)
+    activate MP
+    MP -> ST : encode both
+    ST --> MP : embeddings
+    MP --> UI : similarity_score
+    deactivate MP
+    
+    alt similarity > threshold
+        UI -> U : 🔔 Alert Notification
+    end
+end
+
+@enduml

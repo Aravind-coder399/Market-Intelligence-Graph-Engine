@@ -1,0 +1,102 @@
+@startuml Market_Intelligence_DataFlow
+!theme cerulean-outline
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Segoe UI
+skinparam activityDiamondFontSize 12
+skinparam ArrowFontSize 11
+
+title Market Intelligence - Data Flow Diagram
+
+|#E8F5E9|External Sources|
+|#FFF3E0|Ingestion Pipeline|
+|#E3F2FD|Processing|
+|#F3E5F5|Storage|
+|#FFEBEE|Analytics|
+|#E8F4FD|Presentation|
+
+|External Sources|
+start
+fork
+:📰 FNSPID Dataset\n(Hugging Face);
+fork again
+:📡 Finnhub API\n(Real-time News);
+fork again
+:📈 yfinance\n(Stock Prices);
+end fork
+
+|Ingestion Pipeline|
+:Batch/Stream Loader;
+note right
+  - FNSPIDLoader: Historical data
+  - NewsLoader: Live news
+  - MarketFetcher: Price data
+end note
+
+|Processing|
+fork
+:Generate Embeddings\n(Sentence Transformer);
+note right: 384-dim vectors
+fork again
+:Calculate Returns\n(yfinance historical);
+note right: Day 1/7/30 %
+fork again
+:Extract Topics\n(Rule-based NLP);
+note right: Earnings, M&A, etc.
+fork again
+:Sentiment Analysis\n(TextBlob);
+note right: -1.0 to +1.0
+end fork
+
+|Storage|
+:FalkorDB\nKnowledge Graph;
+note right
+  Nodes:
+  - Company (ticker)
+  - News (headline, embedding, returns)
+  - Topic (category)
+  
+  Relationships:
+  - [:MENTIONS]
+  - [:HAS_TOPIC]
+end note
+
+|Analytics|
+split
+:Vector Similarity\nSearch;
+note right: Find similar past events
+split again
+:Pattern Matching\n(Alert System);
+split again
+:Backtesting\n(Accuracy Validation);
+end split
+
+:Prediction Engine;
+note right
+  Inputs:
+  - Top K similar events
+  - Historical returns
+  - AI sentiment
+  
+  Outputs:
+  - Predicted returns
+  - Confidence score
+  - Evidence list
+end note
+
+|Presentation|
+fork
+:📊 Return Trajectory\n(30-day projection);
+fork again
+:📈 Price Charts\n(Interactive);
+fork again
+:🔔 Alert Notifications\n(Email/Slack);
+fork again
+:📋 Evidence Table\n(Historical proof);
+fork again
+:🤖 AI Report\n(LLM Summary);
+end fork
+
+:Streamlit Dashboard;
+stop
+
+@enduml

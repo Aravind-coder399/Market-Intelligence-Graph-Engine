@@ -1,0 +1,183 @@
+@startuml Market_Intelligence_Class
+!theme cerulean-outline
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Segoe UI
+skinparam classAttributeIconSize 0
+skinparam classFontStyle bold
+skinparam shadowing false
+
+title Market Intelligence Graph Engine - Class Diagram
+
+package "Presentation Layer" #E8F5E9 {
+    class StreamlitApp <<main.py>> {
+        - session_state: Dict
+        - selected_news: Dict
+        - portfolio: Dict
+        - analysis_history: List
+        --
+        + get_live_news(): List[Dict]
+        + get_market_trends(): DataFrame
+        + auto_ingest_realtime_news(): int
+        + calculate_portfolio_value(): Tuple
+        + get_db_stats(): Dict
+    }
+}
+
+package "Core Services" #FFF3E0 {
+    class MarketPredictor <<predict_market.py>> {
+        - encoder: SentenceTransformer
+        - falkor: FalkorClient
+        --
+        + predict(headline, ticker): Dict
+        - _similarity_search_native(embedding, k): List
+        - _similarity_search_fallback(embedding, k): List
+        - _calculate_returns(results): Tuple
+    }
+    
+    class LLMSummarizer <<llm_summary.py>> {
+        - client: OpenAI
+        - api_key: str
+        --
+        + generate_summary(prediction, headline, ticker): str
+        - _fallback_summary(prediction, headline, ticker): str
+    }
+    
+    class AlertManager <<alerts.py>> {
+        - alerts: List[Dict]
+        - alerts_file: str
+        --
+        + add_alert(pattern, ticker, threshold): Dict
+        + remove_alert(alert_id): bool
+        + get_alerts(active_only): List[Dict]
+        + check_alerts(predictor, news_items): List[Dict]
+        - _calculate_similarity(pattern, headline): float
+        - _send_email_alert(triggered_info): void
+    }
+    
+    class Backtester <<backtesting.py>> {
+        - predictor: MarketPredictor
+        - results: List[Dict]
+        --
+        + run_backtest(test_data): Dict
+        + run_backtest_from_graph(limit): Dict
+        + get_confusion_matrix(): Dict
+        + generate_report(): str
+    }
+    
+    class RedisCache <<cache.py>> {
+        - client: Redis
+        - enabled: bool
+        --
+        + get_embedding(headline): List
+        + set_embedding(headline, embedding, ttl): bool
+        + get_prediction(headline, ticker): Dict
+        + set_prediction(headline, prediction, ttl): bool
+        + get_market_data(ticker): Dict
+        + set_market_data(ticker, data, ttl): bool
+        + stats(): Dict
+    }
+}
+
+package "Data Ingestion" #E3F2FD {
+    class FNSPIDLoader <<fnspid_loader.py>> {
+        - s3_path: str
+        --
+        + load_for_ticker(ticker, limit): List[Dict]
+        + load_all(limit): List[Dict]
+    }
+    
+    class NewsLoader <<news_loader.py>> {
+        - api_key: str
+        --
+        + fetch_live_news(): List[Dict]
+        + fetch_for_ticker(ticker): List[Dict]
+    }
+    
+    class GraphLoader <<graph_loader.py>> {
+        - encoder: SentenceTransformer
+        - falkor: FalkorClient
+        --
+        + load_news(items): int
+        - _extract_topics(headline): List[str]
+        - _calculate_returns(ticker, date): Tuple
+    }
+}
+
+package "Graph Layer" #F3E5F5 {
+    class FalkorClient <<falkor_client.py>> {
+        - client: FalkorDB
+        - graph_name: str
+        --
+        + query(cypher): List
+        + create_vector_index(): bool
+        + get_connection_info(): Dict
+    }
+    
+    entity News <<Node>> {
+        headline: string
+        date: string
+        ticker: string
+        source: string
+        embedding: float[384]
+        day_1_return: float
+        day_7_return: float
+        day_30_return: float
+    }
+    
+    entity Company <<Node>> {
+        ticker: string
+        name: string
+    }
+    
+    entity Topic <<Node>> {
+        name: string
+    }
+}
+
+package "External APIs" #FFEBEE {
+    interface yfinance <<API>> {
+        + Ticker(symbol): Stock
+        + download(symbols, period): DataFrame
+    }
+    
+    interface Finnhub <<API>> {
+        + company_news(symbol): List[Dict]
+    }
+    
+    interface OpenAI <<API>> {
+        + chat.completions.create(): Response
+    }
+    
+    interface HuggingFace <<API>> {
+        + datasets.load_dataset(): Dataset
+    }
+}
+
+' Relationships
+StreamlitApp --> MarketPredictor : uses
+StreamlitApp --> AlertManager : uses
+StreamlitApp --> Backtester : uses
+StreamlitApp --> LLMSummarizer : uses
+
+MarketPredictor --> FalkorClient : queries
+MarketPredictor --> RedisCache : caches
+MarketPredictor ..> yfinance : fetches prices
+
+Backtester --> MarketPredictor : uses
+AlertManager --> MarketPredictor : similarity check
+
+GraphLoader --> FalkorClient : writes
+GraphLoader ..> yfinance : calculates returns
+FNSPIDLoader ..> HuggingFace : loads data
+NewsLoader ..> Finnhub : fetches news
+
+LLMSummarizer ..> OpenAI : generates text
+
+FalkorClient --> News : manages
+FalkorClient --> Company : manages
+FalkorClient --> Topic : manages
+
+Company "1" -- "*" News : MENTIONS
+News "*" -- "*" Topic : HAS_TOPIC
+
+@enduml

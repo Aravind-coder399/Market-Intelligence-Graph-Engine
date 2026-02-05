@@ -1,0 +1,88 @@
+@startuml Market_Intelligence_Deployment
+!theme cerulean-outline
+skinparam backgroundColor #FEFEFE
+skinparam defaultFontName Segoe UI
+skinparam nodeStyle rectangle
+
+title Market Intelligence - Deployment Architecture
+
+cloud "Internet" as INET {
+}
+
+node "User's Browser" as BROWSER {
+    component "Streamlit UI" as UI
+}
+
+node "Application Server" as APP {
+    package "Python Runtime" {
+        component "main.py\n(Streamlit)" as MAIN
+        component "predict_market.py" as PRED
+        component "alerts.py" as ALERT
+        component "backtesting.py" as BACK
+        component "llm_summary.py" as LLM
+        component "cache.py" as CACHE
+    }
+    
+    package "Ingestion Workers" {
+        component "scheduled_ingest.py" as SCHED
+        component "graph_loader.py" as GLOAD
+    }
+    
+    package "ML Models" {
+        component "SentenceTransformer\n(all-MiniLM-L6-v2)" as ST
+    }
+}
+
+database "FalkorDB Cloud" as FALKOR #9370DB {
+    collections "market_intelligence\n(Graph Database)" as GRAPH
+}
+
+database "Redis Cache" as REDIS #DC382D {
+    collections "Embeddings\nPredictions\nMarket Data" as RCACHE
+}
+
+cloud "AWS S3" as S3 #FF9900 {
+    file "stock_news/\n*.parquet" as PARQ
+}
+
+cloud "External APIs" as APIS {
+    component "Finnhub" as FINN
+    component "yfinance" as YF
+    component "OpenAI" as OAI
+    component "Hugging Face" as HF
+}
+
+' Connections
+BROWSER --> MAIN : HTTP/WebSocket\n(Port 8501)
+MAIN --> PRED : predict()
+MAIN --> ALERT : check_alerts()
+MAIN --> BACK : run_backtest()
+MAIN --> LLM : generate_summary()
+PRED --> CACHE : get/set
+PRED --> ST : encode()
+PRED --> FALKOR : Cypher Queries\n(Bolt Protocol)
+GLOAD --> FALKOR : Batch Insert
+CACHE --> REDIS : TCP\n(Port 6379)
+SCHED --> GLOAD : Daily Job
+GLOAD --> S3 : s3fs
+LLM --> OAI : HTTPS
+GLOAD --> HF : HTTPS
+MAIN --> YF : HTTPS
+MAIN --> FINN : HTTPS
+
+note right of APP
+  **Deployment Options:**
+  - Local: python -m streamlit run main.py
+  - Docker: docker-compose up
+  - Cloud: Streamlit Cloud / AWS EC2
+end note
+
+note bottom of FALKOR
+  **FalkorDB Cloud**
+  - Host: *.aws.f2e0a955bb84.cloud
+  - Port: 16752
+  - Protocol: Bolt (Neo4j compatible)
+  - Vector Index: News(embedding)
+end note
+
+@enduml
