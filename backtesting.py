@@ -97,19 +97,25 @@ class Backtester:
         
         return summary
     
-    def run_backtest_from_graph(self, limit: int = 100) -> Dict:
-        """Run backtest using data from the knowledge graph."""
+    def run_backtest_from_graph(self, limit: int = 15) -> Dict:
+        """Run backtest using data from the knowledge graph.
+        
+        Uses a smaller default limit (15) for faster execution.
+        """
         try:
-            # Fetch historical data from graph
+            # Fetch historical data from graph - ONLY items with return data
             query = f"""
             MATCH (n:News)
-            WHERE n.day_1_return IS NOT NULL
+            WHERE n.day_1_return IS NOT NULL AND n.ticker IS NOT NULL
             RETURN n.headline, n.ticker, n.day_1_return, n.day_7_return, n.date
-            ORDER BY n.date DESC
+            ORDER BY rand()
             LIMIT {limit}
             """
             
             data = self.predictor.falkor.query(query)
+            
+            if not data:
+                return {'error': 'No historical data with returns found', 'total_predictions': 0}
             
             test_data = []
             for row in data:
@@ -125,7 +131,8 @@ class Backtester:
             
         except Exception as e:
             logger.error(f"Backtest from graph failed: {e}")
-            return {'error': str(e)}
+            return {'error': str(e), 'total_predictions': 0}
+
     
     def get_confusion_matrix(self) -> Dict:
         """Generate confusion matrix from backtest results."""

@@ -272,18 +272,19 @@ elif sidebar_tab == "🔔 Alerts":
 elif sidebar_tab == "📊 Backtest":
     st.sidebar.caption("Test prediction accuracy")
     
-    if st.sidebar.button("🧪 Run Backtest", use_container_width=True):
-        with st.spinner("Running backtest..."):
+    if st.sidebar.button("🧪 Run Backtest (15 samples)", use_container_width=True):
+        with st.spinner("Running backtest (~15 seconds)..."):
             predictor = MarketPredictor()
             backtester = Backtester(predictor)
-            results = backtester.run_backtest_from_graph(limit=50)
+            results = backtester.run_backtest_from_graph(limit=15)
             
-            if 'error' not in results:
-                st.sidebar.metric("Accuracy", f"{results['accuracy']}%")
-                st.sidebar.metric("MAE", f"{results['mean_absolute_error']}%")
-                st.sidebar.success(f"Tested {results['total_predictions']} predictions")
+            if 'error' not in results or results.get('total_predictions', 0) > 0:
+                st.sidebar.metric("Accuracy", f"{results.get('accuracy', 0)}%")
+                st.sidebar.metric("MAE", f"{results.get('mean_absolute_error', 0)}%")
+                st.sidebar.success(f"Tested {results.get('total_predictions', 0)} predictions")
             else:
-                st.sidebar.error(results['error'])
+                st.sidebar.error(results.get('error', 'Unknown error'))
+
 
 
 # --- Main Content ---
