@@ -1,0 +1,18 @@
+name: market_intelligence
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - requests
+  - pip
+  - pip:
+    - yfinance
+    - falkordb
+    - langchain
+    - langchain-community
+    - langgraph
+    - sentence-transformers
+    - streamlit
+    - python-dotenv

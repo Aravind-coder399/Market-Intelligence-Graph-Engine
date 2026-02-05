@@ -1,0 +1,5 @@
+# Market Intelligence Graph Rules
+- Always use Cypher for database interactions (FalkorDB).
+- Use LangGraph for state management; avoid simple sequential scripts.
+- Data engineering style: Use type hints and log all DB transactions.
+- Market Truth: yfinance is the only source for price data.
