@@ -106,13 +106,14 @@ class Backtester:
             # Fetch historical data from graph - ONLY items with return data
             query = f"""
             MATCH (n:News)
-            WHERE n.day_1_return IS NOT NULL AND n.ticker IS NOT NULL
+            WHERE n.day_1_return IS NOT NULL
             RETURN n.headline, n.ticker, n.day_1_return, n.day_7_return, n.date
             ORDER BY rand()
             LIMIT {limit}
             """
             
             data = self.predictor.falkor.query(query)
+
             
             if not data:
                 return {'error': 'No historical data with returns found', 'total_predictions': 0}
